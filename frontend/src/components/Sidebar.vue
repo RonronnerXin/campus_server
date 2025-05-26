@@ -1,0 +1,208 @@
+<template>
+  <aside class="sidebar">
+    <nav class="nav-menu">
+      <div class="nav-section">
+        <div class="nav-item" :class="{ active: currentRoute === '/' }" @click="navigateTo('/')">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10L21 12M19 10V20C19 20.5523 18.5523 21 18 21H15M9 21C9.55228 21 10 20.5523 10 20V16C10 15.4477 10.4477 15 11 15H13C13.5523 15 14 15.4477 14 16V20C14 20.5523 14.4477 21 15 21M9 21H15" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>首页</span>
+        </div>
+        
+        <div class="nav-item" :class="{ active: currentRoute === '/lost-found' }" @click="navigateTo('/lost-found')">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>失物招领</span>
+        </div>
+        
+        <div class="nav-item" :class="{ active: currentRoute === '/community' }" @click="navigateTo('/community')">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M17 20H22V18C22 16.3431 20.6569 15 19 15C18.0444 15 17.1931 15.4468 16.6438 16.1429M17 20H7M17 20V18C17 15.3431 14.6569 13 12 13C9.34315 13 7 15.3431 7 18V20M7 20H2V18C2 16.3431 3.34315 15 5 15C5.95561 15 6.80686 15.4468 7.35625 16.1429M15 7C15 9.20914 13.2091 11 11 11C8.79086 11 7 9.20914 7 7C7 4.79086 8.79086 3 11 3C13.2091 3 15 4.79086 15 7Z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>社区分享</span>
+        </div>
+        
+        <div class="nav-item" :class="{ active: currentRoute === '/market' }" @click="navigateTo('/market')">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M16 18V16H8V18M3 6H21V8C21 8 19.5 9 18 9C16.5 9 16 8 14 8C12 8 11.5 9 10 9C8.5 9 8 8 6 8C4 8 3 9 3 9V6ZM3 9V21H21V9" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>校园市场</span>
+        </div>
+        
+        <div class="nav-item" :class="{ active: currentRoute === '/events' }" @click="navigateTo('/events')">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M8 7V3M16 7V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>校园活动</span>
+        </div>
+      </div>
+          <div class="create-post">
+      <button class="create-btn" @click="navigateTo('/publish')">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 4V20M20 12H4" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        发布内容
+      </button>
+    </div>
+      <div class="nav-section">
+        <h3 class="section-title">热门话题</h3>
+        <div class="topic-list">
+          <div class="topic-item" v-for="topic in topics" :key="topic.id">
+            <span class="topic-name"># {{ topic.name }}</span>
+            <span class="topic-count">{{ topic.count }}</span>
+          </div>
+        </div>
+      </div>
+    </nav>
+    
+
+  </aside>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+
+const router = useRouter()
+const route = useRoute()
+
+const currentRoute = computed(() => route.path)
+
+const navigateTo = (path) => {
+  router.push(path)
+}
+
+const topics = ref([
+  { id: 1, name: '校园卡丢失', count: '56' },
+  { id: 2, name: '考研资料', count: '42' },
+  { id: 3, name: '宿舍生活', count: '38' },
+  { id: 4, name: '校园美食', count: '31' },
+  { id: 5, name: '实习信息', count: '28' }
+])
+</script>
+
+<style scoped>
+.sidebar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  height: fit-content;
+  position: sticky;
+  top: 88px;
+  border: 1px solid #f1f3f4;
+}
+
+.nav-menu {
+  margin-bottom: 24px;
+}
+
+.nav-section {
+  margin-bottom: 32px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+}
+
+.nav-item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.topic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.topic-item:hover {
+  background: #f9fafb;
+}
+
+.topic-name {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.topic-count {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.create-post {
+  border-top: 1px solid #f1f3f4;
+  padding-top: 24px;
+}
+
+.create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.create-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    display: none;
+  }
+}
+</style>
