@@ -77,6 +77,7 @@
             type="datetime-local" 
             id="time" 
             v-model="formData.time" 
+            placeholder="请选择丢失/拾获时间"
             class="form-input"
           />
         </div>
@@ -160,12 +161,14 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
+import { createLostItem } from '../services/lostItemServ';
 
-const router = useRouter()
-const fileInput = ref(null)
-const dragover = ref(false)
+const router = useRouter();
+const fileInput = ref(null);
+const dragover = ref(false);
+const submitting = ref(false);
 
 const formData = reactive({
   type: 'lost',
@@ -178,108 +181,134 @@ const formData = reactive({
   contactValue: '',
   hideContact: false,
   images: []
-})
+});
 
-const triggerFileInput = () => {
-  fileInput.value.click()
-}
-
-const onFileChange = (event) => {
-  const files = event.target.files
-  if (!files.length) return
-  
-  processFiles(files)
-}
-
-const onDrop = (event) => {
-  dragover.value = false
-  const files = event.dataTransfer.files
-  if (!files.length) return
-  
-  processFiles(files)
-}
-
-const processFiles = (files) => {
-  // 限制最多上传3张图片
-  const remainingSlots = 3 - formData.images.length
-  if (remainingSlots <= 0) {
-    alert('最多只能上传3张图片')
-    return
-  }
-  
-  const filesToProcess = Array.from(files).slice(0, remainingSlots)
-  
-  filesToProcess.forEach(file => {
-    // 检查文件类型
-    if (!file.type.startsWith('image/')) {
-      alert('请上传图片文件')
-      return
-    }
-    
-    // 检查文件大小
-    if (file.size > 2 * 1024 * 1024) {
-      alert('图片大小不能超过2MB')
-      return
-    }
-    
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      formData.images.push({
-        file: file,
-        url: e.target.result
-      })
-    }
-    reader.readAsDataURL(file)
-  })
-}
-
-const removeImage = (index) => {
-  formData.images.splice(index, 1)
-}
-
-const submitForm = () => {
+// 处理表单提交
+const submitForm = async () => {
   // 表单验证
   if (!formData.title) {
-    alert('请输入标题')
-    return
+    alert('请输入标题');
+    return;
   }
   
   if (!formData.category) {
-    alert('请选择物品分类')
-    return
+    alert('请选择物品分类');
+    return;
   }
   
   if (!formData.description) {
-    alert('请输入详细描述')
-    return
+    alert('请输入详细描述');
+    return;
   }
   
   if (!formData.location) {
-    alert('请输入地点')
-    return
+    alert('请输入地点');
+    return;
   }
   
   if (!formData.time) {
-    alert('请选择时间')
-    return
+    alert('请选择时间');
+    return;
   }
   
   if (!formData.hideContact && !formData.contactValue) {
-    alert('请输入联系方式或选择仅通过站内消息联系')
-    return
+    alert('请输入联系方式或选择仅通过站内消息联系');
+    return;
   }
   
-  // 提交表单
-  console.log('提交表单数据:', formData)
+  // 准备提交数据
+  const submitData = {
+    type: formData.type,
+    title: formData.title,
+    category: formData.category,
+    description: formData.description,
+    location: formData.location,
+    time: formData.time,
+    contact_type: formData.contactType,
+    contact_value: formData.contactValue,
+    hide_contact: formData.hideContact
+  };
   
-  // 模拟提交成功
-  alert('发布成功！')
-  router.push('/lost-found')
-}
+  // 准备图片文件
+  const imageFiles = formData.images.map(img => img.file);
+  
+  submitting.value = true;
+  
+  try {
+    const result = await createLostItem(submitData, imageFiles);
+    
+    if (result) {
+      alert('发布成功！');
+      router.push('/lost-found');
+    }
+  } catch (error) {
+    console.error('提交表单出错:', error);
+    alert('发布失败，请稍后再试');
+  } finally {
+    submitting.value = false;
+  }
+};
 
-const goBack = () => {
-  router.back()
-}
+// 触发文件选择
+const triggerFileInput = () => {
+  fileInput.value.click();
+};
+
+// 处理文件变化
+const onFileChange = (event) => {
+  const files = Array.from(event.target.files);
+  handleFiles(files);
+};
+
+// 处理拖拽
+const onDrop = (event) => {
+  dragover.value = false;
+  const files = Array.from(event.dataTransfer.files);
+  handleFiles(files);
+};
+
+// 处理文件
+const handleFiles = (files) => {
+  // 检查文件数量
+  if (formData.images.length + files.length > 3) {
+    alert('最多只能上传3张图片');
+    return;
+  }
+
+  files.forEach(file => {
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+      alert('只能上传图片文件');
+      return;
+    }
+
+    // 检查文件大小（2MB = 2 * 1024 * 1024 bytes）
+    if (file.size > 2 * 1024 * 1024) {
+      alert('图片大小不能超过2MB');
+      return;
+    }
+
+    // 创建预览URL
+    const url = URL.createObjectURL(file);
+    formData.images.push({
+      file,
+      url
+    });
+  });
+};
+
+// 移除图片
+const removeImage = (index) => {
+  URL.revokeObjectURL(formData.images[index].url); // 释放URL
+  formData.images.splice(index, 1);
+};
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  formData.images.forEach(image => {
+    URL.revokeObjectURL(image.url);
+  });
+});
 </script>
 
 <style scoped>
@@ -288,6 +317,12 @@ const goBack = () => {
   border-radius: 16px;
   border: 1px solid #f1f3f4;
   padding: 24px;
+  max-width: 800px;  /* 与PostList同宽 */
+  margin: 0 auto;
+}
+
+.publish-form {
+  width: 100%;
 }
 
 .page-header {

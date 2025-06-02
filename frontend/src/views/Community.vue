@@ -106,10 +106,10 @@ const commentInputs = reactive({})
 
 const tabs = ref([
   { id: 'all', name: '全部' },
-  { id: 'study', name: '学习交流' },
-  { id: 'life', name: '校园生活' },
-  { id: 'food', name: '美食分享' },
-  { id: 'activity', name: '活动推荐' }
+  { id: 'study', name: '技术' },
+  { id: 'life', name: '生活' },
+  { id: 'food', name: '学习' },
+  { id: 'activity', name: '旅行' }
 ])
 
 const posts = ref([

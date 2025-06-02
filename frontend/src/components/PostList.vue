@@ -136,7 +136,7 @@ const posts = ref([
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
+  padding: 12px;
   border-bottom: 1px solid #f1f3f4;
 }
 
@@ -207,6 +207,7 @@ const posts = ref([
 
 .author-info {
   flex: 1;
+  text-align: left;
 }
 
 .author-name {
@@ -219,6 +220,7 @@ const posts = ref([
 .post-time {
   font-size: 12px;
   color: #9ca3af;
+  text-align: left;
 }
 
 .follow-btn {
@@ -248,6 +250,7 @@ const posts = ref([
   color: #1a1a1a;
   margin-bottom: 8px;
   line-height: 1.4;
+  text-align: left;
 }
 
 .post-excerpt {
@@ -255,6 +258,7 @@ const posts = ref([
   color: #6b7280;
   line-height: 1.6;
   margin-bottom: 12px;
+  text-align: left;
 }
 
 .post-tags {

@@ -120,7 +120,7 @@ const handleLogin = async () => {
         const expires = new Date(Date.now() + 3600 * 1000).toUTCString()
         document.cookie = `authToken=${userInfo.jwtToken}; path=/; expires=${expires}`
         // 跳转到主页
-        router.push('/HomePage')
+        router.push('/')
     } catch (error) {
         errorMessage(error.message);
         changeValiCode();
@@ -150,7 +150,8 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     /* background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); */
-    padding: 20px;
+    padding-left: 500px;
+    padding-right: 350px;
 }
  
 .login-container {

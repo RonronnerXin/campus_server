@@ -23,26 +23,19 @@
           <span>社区分享</span>
         </div>
         
-        <div class="nav-item" :class="{ active: currentRoute === '/market' }" @click="navigateTo('/market')">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M16 18V16H8V18M3 6H21V8C21 8 19.5 9 18 9C16.5 9 16 8 14 8C12 8 11.5 9 10 9C8.5 9 8 8 6 8C4 8 3 9 3 9V6ZM3 9V21H21V9" stroke="currentColor" stroke-width="2"/>
-          </svg>
-          <span>校园市场</span>
-        </div>
-        
-        <div class="nav-item" :class="{ active: currentRoute === '/events' }" @click="navigateTo('/events')">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M8 7V3M16 7V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="currentColor" stroke-width="2"/>
-          </svg>
-          <span>校园活动</span>
-        </div>
       </div>
-          <div class="create-post">
-      <button class="create-btn" @click="navigateTo('/publish')">
+      <div class="create-post">
+      <button class="create-btn" @click="navigateTo('/publishItem')">
         <svg viewBox="0 0 24 24" fill="none">
           <path d="M12 4V20M20 12H4" stroke="currentColor" stroke-width="2"/>
         </svg>
-        发布内容
+        发布失物招领
+      </button>
+            <button class="create-btn" @click="navigateTo('/publishPost')">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 4V20M20 12H4" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        发布博客
       </button>
     </div>
       <div class="nav-section">
@@ -181,13 +174,14 @@ const topics = ref([
   gap: 8px;
   width: 100%;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #667eea 0%, #e834bb 100%);
   color: #ffffff;
   border: none;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  margin-bottom: 20px;
 }
 
 .create-btn:hover {

@@ -29,20 +29,25 @@
       </div>
       
       <nav class="nav-actions">
-        <button class="nav-btn" title="通知">
+        <!-- <button class="nav-btn" title="通知">
           <svg viewBox="0 0 24 24" fill="none">
             <path d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.9 22 12 22ZM18 16V11C18 7.93 16.36 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5S10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z" fill="currentColor"/>
           </svg>
           <span class="notification-badge">3</span>
-        </button>
+        </button> -->
         
-        <template v-if="isLoggedIn">
-          <div class="user-menu">
+        <template v-if="appStore.userInfo.loggedIn">
+          <div class="user-menu" @click="toggleMenu">
             <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" alt="用户头像" class="avatar" />
             <div class="user-info">
-              <span class="username">张三</span>
+              <span class="username">{{appStore.userInfo.username}}</span>
               <span class="user-role">计算机学院</span>
             </div>
+            <ul v-show="showMenu" class="user-dropdown">
+              <li><router-link to="/profile">个人中心</router-link></li>
+              <li><router-link to="/change-password">修改密码</router-link></li>
+              <li @click="appStore.logout">注销</li>
+            </ul>
           </div>
         </template>
         <template v-else>
@@ -57,10 +62,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue';
+import { useAppStore } from '../stores/app';
 
-const searchQuery = ref('')
-const isLoggedIn = ref(false)
+const appStore = useAppStore();
+const searchQuery = ref('');
+const showMenu = ref(false);
+
+const toggleMenu = () => {
+  showMenu.value = !showMenu.value;
+};
 </script>
 
 <style scoped>
@@ -209,6 +220,7 @@ const isLoggedIn = ref(false)
   background: #f9fafb;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative; /* 添加这行 */
 }
 
 .user-menu:hover {
@@ -272,6 +284,50 @@ const isLoggedIn = ref(false)
 .register-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+.logout-btn {
+  margin-left: 12px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #ef4444;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  text-decoration: underline;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 8px 0;
+  min-width: 160px;
+  list-style: none;
+}
+
+.user-dropdown li {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.user-dropdown li:hover {
+  background-color: #f3f4f6;
+}
+
+.user-dropdown a {
+  color: inherit;
+  text-decoration: none;
+  display: block;
 }
 
 @media (max-width: 768px) {

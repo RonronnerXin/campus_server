@@ -1,14 +1,13 @@
 <template>
-  <div id="app">
     <Header />
     <main class="main-content">
       <Sidebar />
       <div class="content-area">
-        <router-view />
+          <router-view />
       </div>
     </main>
-  </div>
 </template>
+
 
 <script setup>
 import Header from '../components/Header.vue'
@@ -27,17 +26,29 @@ import Sidebar from '../components/Sidebar.vue'
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  height: calc(100vh - 88px); /* Adjust for header height */
 }
 
 .content-area {
-  width: 100%;
+  width: 1000px;
 }
+.content-container {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 20px;
+}
+
 
 @media (max-width: 1024px) {
   .main-content {
     grid-template-columns: 1fr;
     gap: 16px;
     padding: 16px;
+  }
+    .content-container {
+    max-width: 100%;
+    padding: 0 16px;
   }
 }
 </style>

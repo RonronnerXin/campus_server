@@ -4,9 +4,10 @@ import { useAppStore } from "../stores/app";
 export async function generalRequest(
   url: string,
   config: {
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE' // 明确支持的方法类型
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' |'PATCH'// 明确支持的方法类型
     data?: any // 请求体数据（POST/PUT使用）
     params?: any // URL参数（GET使用）
+    headers?: RawAxiosRequestHeaders // 请求头
   }
 ): Promise<any> {
   const response = await axios({

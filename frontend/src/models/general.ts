@@ -48,10 +48,10 @@ export interface UserInfo {
   username: string
   perName: string
   jwtToken: string
-  id: number
+  id: string
   roles: string
   password: string
-  icon:string
+  avatar:string
 }
 //用于Chart数据信息的定义
 export interface ChartItem {

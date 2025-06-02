@@ -7,7 +7,7 @@
           v-for="tab in tabs" 
           :key="tab.id"
           :class="['tab', { active: activeTab === tab.id }]"
-          @click="activeTab = tab.id"
+          @click="handleTabChange(tab.id)"
         >
           {{ tab.name }}
         </button>
@@ -24,10 +24,12 @@
           placeholder="搜索物品描述、地点、时间..."
           v-model="searchQuery"
           class="search-input"
+          @input="handleSearchDebounce"
+          width="200px"
         />
       </div>
       <div class="filter-options">
-        <select v-model="selectedCategory" class="filter-select">
+        <select v-model="selectedCategory" class="filter-select" @change="handleFilterChange">
           <option value="">全部分类</option>
           <option value="card">校园卡</option>
           <option value="electronics">电子设备</option>
@@ -35,7 +37,7 @@
           <option value="clothing">衣物</option>
           <option value="other">其他</option>
         </select>
-        <select v-model="selectedLocation" class="filter-select">
+        <select v-model="selectedLocation" class="filter-select" @change="handleFilterChange">
           <option value="">全部地点</option>
           <option value="library">图书馆</option>
           <option value="classroom">教室</option>
@@ -46,10 +48,25 @@
       </div>
     </div>
 
-    <div class="items-grid">
-      <div v-for="item in filteredItems" :key="item.id" class="item-card">
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <!-- 无数据状态 -->
+  <div v-else-if="!loading && items.length === 0" class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" class="empty-icon">
+        <path d="M9 13h6m-3-3v6M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <p>暂无相关物品信息</p>
+    </div>
+
+    <!-- 物品列表 -->
+    <div v-else class="items-grid">
+      <div v-for="item in items" :key="item.id" class="item-card" @click="viewItemDetail(item.id)">
         <div class="item-image-container">
-          <img :src="item.image" :alt="item.title" class="item-image" />
+          <img :src="getItemImage(item)" :alt="item.title" class="item-image" />
           <span class="item-status" :class="item.type">{{ item.type === 'lost' ? '寻物启事' : '招领启事' }}</span>
         </div>
         <div class="item-content">
@@ -59,7 +76,7 @@
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
               </svg>
-              <span>{{ item.time }}</span>
+              <span>{{ formatDate(item.time) }}</span>
             </div>
             <div class="detail-item">
               <svg viewBox="0 0 24 24" fill="none">
@@ -71,32 +88,33 @@
           <p class="item-description">{{ item.description }}</p>
           <div class="item-footer">
             <div class="user-info">
-              <img :src="item.user.avatar" :alt="item.user.name" class="user-avatar" />
-              <span class="user-name">{{ item.user.name }}</span>
+              <img :src="getUserAvatar(item.owner_id)" :alt="item.owner_username || '用户'" class="user-avatar" />
+              <span class="user-name">{{ item.owner_username || '匿名用户' }}</span>
             </div>
-            <button class="contact-btn">联系Ta</button>
+            <button class="contact-btn" @click.stop="contactOwner(item)">联系Ta</button>
           </div>
         </div>
       </div>
     </div>
     
-    <div class="pagination">
-      <button class="page-btn prev" :disabled="currentPage === 1" @click="currentPage--">
+    <!-- 分页控件 -->
+    <div v-if="totalPages > 1" class="pagination">
+      <button class="page-btn prev" :disabled="currentPage === 1" @click="handlePageChange(currentPage - 1)">
         <svg viewBox="0 0 24 24" fill="none">
           <path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2"/>
         </svg>
       </button>
       <div class="page-numbers">
         <button 
-          v-for="page in totalPages" 
+          v-for="page in displayedPages" 
           :key="page" 
           :class="['page-number', { active: currentPage === page }]"
-          @click="currentPage = page"
+          @click="handlePageChange(page)"
         >
           {{ page }}
         </button>
       </div>
-      <button class="page-btn next" :disabled="currentPage === totalPages" @click="currentPage++">
+      <button class="page-btn next" :disabled="currentPage === totalPages" @click="handlePageChange(currentPage + 1)">
         <svg viewBox="0 0 24 24" fill="none">
           <path d="M9 5L16 12L9 19" stroke="currentColor" stroke-width="2"/>
         </svg>
@@ -106,140 +124,219 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { generalRequest } from '../services/genServ' // 根据实际路径调整
 
+const router = useRouter()
 const searchQuery = ref('')
 const selectedCategory = ref('')
 const selectedLocation = ref('')
 const activeTab = ref('all')
 const currentPage = ref(1)
-const itemsPerPage = 6
-const totalPages = 3
+const itemsPerPage = 20
+const totalPages = ref(1)
+const totalCount = ref(0)
+const items = ref([])
+const loading = ref(false)
+const searchTimeout = ref(null)
 
+// 默认用户头像
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face'
+
+// 标签页配置
 const tabs = ref([
   { id: 'all', name: '全部' },
   { id: 'lost', name: '寻物启事' },
   { id: 'found', name: '招领启事' }
 ])
 
-const items = ref([
-  {
-    id: 1,
-    type: 'lost',
-    title: '丢失校园卡',
-    description: '昨天下午在图书馆自习时不小心丢失了校园卡，姓名李明，学号2021001234，有拾到的同学请联系我，谢谢！',
-    location: '图书馆三楼',
-    time: '2023-10-15 14:30',
-    image: 'https://images.unsplash.com/photo-1586223287834-f73bd5e6a967?w=300&h=200&fit=crop',
-    category: 'card',
-    user: {
-      name: '李明',
-      avatar: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face'
-    }
-  },
-  {
-    id: 2,
-    type: 'found',
-    title: '捡到一个黑色钱包',
-    description: '今天早上在教学楼A区一楼捡到一个黑色钱包，内有现金和一些证件，失主请联系我并说出钱包内物品信息认领。',
-    location: '教学楼A区',
-    time: '2023-10-16 09:15',
-    image: 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=300&h=200&fit=crop',
-    category: 'other',
-    user: {
-      name: '张华',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop&crop=face'
-    }
-  },
-  {
-    id: 3,
-    type: 'lost',
-    title: '寻找蓝色笔记本电脑',
-    description: '今天中午在食堂二楼用餐后发现笔记本电脑不见了，是一台蓝色的联想笔记本，有明显的贴纸标识，内有重要资料，酬谢500元。',
-    location: '第二食堂',
-    time: '2023-10-16 12:40',
-    image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=300&h=200&fit=crop',
-    category: 'electronics',
-    user: {
-      name: '王芳',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40&h=40&fit=crop&crop=face'
-    }
-  },
-  {
-    id: 4,
-    type: 'found',
-    title: '捡到一串钥匙',
-    description: '在体育馆门口捡到一串钥匙，有宿舍钥匙和自行车钥匙，还有一个小熊挂件，请失主尽快认领。',
-    location: '体育馆',
-    time: '2023-10-15 18:20',
-    image: 'https://images.unsplash.com/photo-1582550740000-5e53d86ddec9?w=300&h=200&fit=crop',
-    category: 'other',
-    user: {
-      name: '刘强',
-      avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=40&h=40&fit=crop&crop=face'
-    }
-  },
-  {
-    id: 5,
-    type: 'lost',
-    title: '丢失《数据结构》教材',
-    description: '上周五在计算机教室上课后丢失了一本《数据结构》教材，书内有重要笔记，如有拾到请联系我，必有酬谢。',
-    location: '计算机教室',
-    time: '2023-10-13 16:00',
-    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&h=200&fit=crop',
-    category: 'books',
-    user: {
-      name: '赵雪',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=40&h=40&fit=crop&crop=face'
-    }
-  },
-  {
-    id: 6,
-    type: 'found',
-    title: '捡到一件黑色外套',
-    description: '昨晚在学生活动中心捡到一件黑色外套，是优衣库的，口袋里有一张电影票，请失主联系认领。',
-    location: '学生活动中心',
-    time: '2023-10-15 21:30',
-    image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=300&h=200&fit=crop',
-    category: 'clothing',
-    user: {
-      name: '陈明',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face'
-    }
+// 计算要显示的页码（最多显示5个页码）
+const displayedPages = computed(() => {
+  if (totalPages.value <= 5) {
+    return Array.from({ length: totalPages.value }, (_, i) => i + 1)
   }
-])
-
-const filteredItems = computed(() => {
-  let result = items.value
-
-  // 按标签筛选
-  if (activeTab.value !== 'all') {
-    result = result.filter(item => item.type === activeTab.value)
+  
+  let start = Math.max(1, currentPage.value - 2)
+  let end = Math.min(totalPages.value, start + 4)
+  
+  if (end - start < 4) {
+    start = Math.max(1, end - 4)
   }
-
-  // 按搜索关键词筛选
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(item => 
-      item.title.toLowerCase().includes(query) || 
-      item.description.toLowerCase().includes(query) || 
-      item.location.toLowerCase().includes(query)
-    )
-  }
-
-  // 按分类筛选
-  if (selectedCategory.value) {
-    result = result.filter(item => item.category === selectedCategory.value)
-  }
-
-  // 按地点筛选
-  if (selectedLocation.value) {
-    const location = selectedLocation.value.toLowerCase()
-    result = result.filter(item => item.location.toLowerCase().includes(location))
-  }
-
-  return result
+  
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
+
+// 获取失物招领列表
+const fetchItems = async () => {
+  loading.value = true
+  try {
+    const params = {
+      skip: (currentPage.value - 1) * itemsPerPage,
+      limit: itemsPerPage,
+      type: activeTab.value === 'all' ? undefined : activeTab.value,
+      category: selectedCategory.value || undefined,
+      q: searchQuery.value || undefined
+    }
+
+    // 如果是按地点筛选，将其添加到搜索查询中
+    if (selectedLocation.value) {
+      params.q = params.q ? `${params.q} ${selectedLocation.value}` : selectedLocation.value
+    }
+
+    const response = await generalRequest('/api/lost-items/', {
+      method: 'GET',
+      params
+    })
+
+    if (response && response.data) {
+      items.value = response.data
+      totalCount.value = response.count
+      totalPages.value = response.totalPages
+    } else {
+      console.error('获取数据失败: 响应格式不正确', response)
+      items.value = []
+    }
+  } catch (error) {
+    console.error('获取数据失败:', error)
+    items.value = []
+    if (error.response && error.response.status === 403) {
+      if (confirm('您的登录状态已过期，请先登录')) {
+        router.push('/login')
+      }
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 获取物品图片
+const getItemImage = (item) => {
+  if (item.images && item.images.length > 0) {
+    // 检查是否已经是完整URL
+    if (item.images[0].startsWith('http')) {
+      return item.images[0]
+    }
+    // 拼接完整的API地址
+    return `http://localhost:8000${item.images[0]}`
+  }
+
+  // 默认图片逻辑保持不变
+  const defaultImages = {
+    'card': 'https://images.unsplash.com/photo-1586223287834-f73bd5e6a967?w=300&h=200&fit=crop',
+    'electronics': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=300&h=200&fit=crop',
+    'books': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&h=200&fit=crop',
+    'clothing': 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=300&h=200&fit=crop',
+    'other': 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=300&h=200&fit=crop'
+  }
+  return defaultImages[item.category] || defaultImages.other
+}
+
+// 获取用户头像
+const getUserAvatar = (userId) => {
+  // 这里可以根据用户ID获取用户头像，现在使用默认头像
+  return DEFAULT_AVATAR
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 处理标签切换
+const handleTabChange = (tabId) => {
+  activeTab.value = tabId
+  currentPage.value = 1
+  fetchItems()
+}
+
+// 处理筛选条件变化
+const handleFilterChange = () => {
+  currentPage.value = 1
+  fetchItems()
+}
+
+// 处理搜索（带防抖）
+const handleSearchDebounce = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+  
+  searchTimeout.value = setTimeout(() => {
+    currentPage.value = 1
+    fetchItems()
+  }, 500) // 500ms防抖
+}
+
+// 处理分页变化
+const handlePageChange = (page) => {
+  currentPage.value = page
+  fetchItems()
+  // 滚动到页面顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// 查看物品详情
+const viewItemDetail = (itemId) => {
+  router.push(`/lostitemdetail/${itemId}`)
+}
+
+// 联系物品所有者
+const contactOwner = (item) => {
+  // 阻止冒泡，避免触发卡片点击
+  event.stopPropagation()
+  
+  if (item.hide_contact) {
+    // 如果隐藏联系方式，跳转到消息页面
+    router.push(`/messages/new?recipient=${item.owner_id}&itemId=${item.id}`)
+  } else {
+    // 显示联系方式
+    let contactInfo = ''
+    switch (item.contact_type) {
+      case 'phone':
+        contactInfo = `电话: ${item.contact_value}`
+        break
+      case 'wechat':
+        contactInfo = `微信: ${item.contact_value}`
+        break
+      case 'qq':
+        contactInfo = `QQ: ${item.contact_value}`
+        break
+      default:
+        contactInfo = item.contact_value
+    }
+    alert(`联系方式: ${contactInfo}`)
+  }
+}
+
+// 初始化加载数据
+onMounted(() => {
+  fetchItems()
+})
+
+// 监听路由参数变化（如果有）
+watch(() => router.currentRoute.value.query, (newQuery) => {
+  if (newQuery.type) {
+    activeTab.value = newQuery.type
+  }
+  if (newQuery.category) {
+    selectedCategory.value = newQuery.category
+  }
+  if (newQuery.q) {
+    searchQuery.value = newQuery.q
+  }
+  
+  // 如果有查询参数变化，重新获取数据
+  fetchItems()
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -294,12 +391,20 @@ const filteredItems = computed(() => {
   gap: 16px;
   margin-bottom: 24px;
   flex-wrap: wrap;
+  align-items: center; /* 垂直居中 */
 }
 
 .search-input-wrapper {
-  position: relative;
-  flex: 1;
+  flex: 1 1 220px; /* 不用width, 自动分配剩余宽度，最小220px */
+  min-width: 180px;
+}
+
+.filter-options {
+  flex-shrink: 0;
   min-width: 200px;
+  max-width: 350px;
+  gap: 12px;
+  display: flex;
 }
 
 .search-icon {
@@ -329,11 +434,6 @@ const filteredItems = computed(() => {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.filter-options {
-  display: flex;
-  gap: 12px;
-}
-
 .filter-select {
   padding: 12px 16px;
   border: 1px solid #e5e7eb;
@@ -352,6 +452,47 @@ const filteredItems = computed(() => {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f4f6;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0;
+  color: #6b7280;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  color: #d1d5db;
+  margin-bottom: 16px;
+}
+
 .items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -364,6 +505,7 @@ const filteredItems = computed(() => {
   border-radius: 12px;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .item-card:hover {

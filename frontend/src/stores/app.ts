@@ -13,24 +13,25 @@ export const useAppStore = defineStore("app", {
       username: "",
       perName: "",
       jwtToken: "",
-      id: 0,
+      id: "",
       roles: "",
       password: "",
-      icon: ""
+      avatar: ""
     } as UserInfo
   }),
   actions: {
     async login(username: string, password: string): Promise<UserInfo> {
       const res = await userLoginReq(username, password);
+      console.log("登录结果：", res);
       this.userInfo = {
         loggedIn: true,
         username: res.username,
         perName: res.perName,
         jwtToken: res.access_token,
-        id: res.id,
+        id: res.user_id,
         roles: res.roles,
         password: res.password,
-        icon:"src/resource/"+res.icon
+        avatar:"src/resource/"+res.icon
       };
       return this.userInfo;;
     },
@@ -41,7 +42,7 @@ export const useAppStore = defineStore("app", {
         perName: "",
         jwtToken: "",
         roles: "",
-        id: 0,
+        id: "",
         password: "",
         icon:""
       };
