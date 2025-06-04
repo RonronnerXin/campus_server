@@ -99,11 +99,16 @@ def read_blog_posts(
                 (PostLike.user_id == current_user.id)
             )
             liked = session.exec(like_query).first() is not None
+        # 获取物品的图片
+        images_query = select(BlogImage.image_url).where(BlogImage.blog_id == post.id)
+        image_urls = session.exec(images_query).all()
+        print(image_urls)
 
         # 转换为公开模型
         post_dict = post.model_dump()
         post_dict["author_name"] = author.username if author else "Unknown"
         post_dict["author_avatar"] = author.avatar if author else None
+        post_dict["images"] = image_urls
         post_dict["liked"] = liked
         result_posts.append(parse_obj_as(BlogPostPublic, post_dict))
 
@@ -155,11 +160,18 @@ def read_my_blog_posts(
                 (PostLike.user_id == current_user.id)
             )
             liked = session.exec(like_query).first() is not None
+        images_query = select(BlogImage.image_url).where(BlogImage.blog_id == post.id)
+        image_urls = session.exec(images_query).all()
+
+        comments_query = select(Comment.content).where(Comment.post_id == post.id)
+        comments_content = session.exec(comments_query).all()
 
         # 转换为公开模型
         post_dict = post.model_dump()
         post_dict["author_name"] = author.username if author else "Unknown"
         post_dict["author_avatar"] = author.avatar if author else None
+        post_dict["images"] = image_urls
+        post_dict["comments"] = comments_content
         post_dict["liked"] = liked
         result_posts.append(parse_obj_as(BlogPostPublic, post_dict))
 
@@ -275,6 +287,8 @@ async def create_blog_post(
     session.commit()
 
     post.__dict__["images"] = image_urls
+    post.__dict__["author_name"] = current_user.username
+    post.__dict__["author_avatar"] = current_user.avatar
 
     return post  # 返回修改后的对象
 
@@ -606,6 +620,12 @@ def create_comment(
     response_data["user_avatar"] = user.avatar if user else None
     response_data["liked"] = False
     response_data["replies"] = []
+    # if parent_id:
+    #     parent_comment = session.get(Comment, parent_id)  # 已在前面校验过存在
+    #     reply_user = session.get(User, parent_comment.user_id)
+    #     response_data["reply_username"] = reply_user.username if reply_user else "Unknown"
+    # else:
+    #     response_data["reply_username"] = None
 
     return parse_obj_as(CommentPublic, response_data)
 

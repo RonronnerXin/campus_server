@@ -94,11 +94,7 @@
           
           <div class="contact-card">
             <h3 class="info-title">联系方式</h3>
-            <div v-if="item.hide_contact" class="hidden-contact">
-              <p>发布者已隐藏联系方式，请通过站内消息联系</p>
-              <button class="primary-btn" @click="sendMessage">发送站内消息</button>
-            </div>
-            <div v-else class="contact-info">
+            <div class="contact-info">
               <div class="contact-type">
                 <span class="contact-label">联系方式:</span>
                 <span class="contact-value">{{ getContactTypeText(item.contact_type) }}</span>
@@ -126,6 +122,12 @@
           </div>
         </div>
       </div>
+      
+      <!-- 地图容器 -->
+      <div class="map-container">
+        <div id="container" style="width: 100%; height: 400px;"></div>
+      </div>
+
       
       <!-- 相关推荐 -->
       <div class="related-section">
@@ -192,6 +194,10 @@ import { generalRequest } from '../services/genServ' // 根据实际路径调整
 const router = useRouter()
 const route = useRoute()
 const itemId = computed(() => route.params.id)
+const map = ref(null)
+const myValue = ref('')
+const lng = ref('')
+const lat = ref('')
 
 const item = ref(null)
 const loading = ref(true)
@@ -200,7 +206,7 @@ const relatedItems = ref([])
 const showDeleteConfirm = ref(false)
 
 // 当前用户ID (实际应用中应从用户状态获取)
-const currentUserId = ref('user-123') // 示例ID，实际使用时应替换
+const currentUserId = ref('384e528d-e853-4311-9840-824ac4fa06b2') // 示例ID，实际使用时应替换
 
 // 计算当前显示的图片
 const currentImage = computed(() => {
@@ -212,6 +218,7 @@ const currentImage = computed(() => {
 
 // 判断当前用户是否为物品所有者
 const isOwner = computed(() => {
+  console.log('当前用户ID:', currentUserId.value)
   return item.value && item.value.owner_id === currentUserId.value
 })
 
@@ -225,10 +232,14 @@ const fetchItemDetail = async () => {
     
     if (response) {
       item.value = response
-      // 重置当前图片索引
       currentImageIndex.value = 0
-      // 获取相关物品
       fetchRelatedItems()
+      // 等待下一个事件循环再初始化地图
+      setTimeout(() => {
+        loadBaiduMap(() => {
+          initMap()
+        })
+      }, 100)
     } else {
       console.error('获取物品详情失败:', response)
       item.value = null
@@ -236,11 +247,6 @@ const fetchItemDetail = async () => {
   } catch (error) {
     console.error('获取物品详情出错:', error)
     item.value = null
-    if (error.response && error.response.status === 403) {
-      if (confirm('您的登录状态已过期，请先登录')) {
-        router.push('/login')
-      }
-    }
   } finally {
     loading.value = false
   }
@@ -349,7 +355,7 @@ const goBack = () => {
 
 // 查看其他物品详情
 const viewItemDetail = (id) => {
-  router.push(`/lost-found/${id}`)
+  router.push(`/lostitemdetail/${id}`)
 }
 
 // 获取物品图片
@@ -445,6 +451,70 @@ watch(() => route.params.id, (newId) => {
     fetchItemDetail()
   }
 }, { immediate: true })
+
+const loadBaiduMap = (callback) => {
+  if (window.BMap) {
+    callback()
+    return
+  }
+
+  // 全局回调函数
+  window.initBMap = () => {
+    // 确保 BMap 已经加载完成
+    if (window.BMap) {
+      callback()
+    }
+  }
+
+  const script = document.createElement("script")
+  script.type = "text/javascript"
+  // 使用 HTTPS 并添加 callback 参数
+  script.src = `https://api.map.baidu.com/api?v=3.0&ak=mK5CDIAi1mk8Le8z3RCTto1KLzGCG0hQ&callback=initBMap`
+  document.head.appendChild(script)
+}
+
+const initMap = () => {
+  try {
+    // 确保 DOM 元素存在
+    if (!document.getElementById('container')) {
+      console.error('地图容器不存在')
+      return
+    }
+
+    // 创建地图实例
+    map.value = new BMap.Map("container")
+    
+    // 默认中心点（济南）
+    const centerPoint = new BMap.Point(117.121225, 36.651316)
+    map.value.centerAndZoom(centerPoint, 13)
+    map.value.enableScrollWheelZoom()
+
+    // 添加控件
+    map.value.addControl(new BMap.NavigationControl())
+    map.value.addControl(new BMap.ScaleControl())
+
+    // 如果有物品位置信息，设置标记
+    if (item.value && item.value.location) {
+      const myGeo = new BMap.Geocoder()
+      myGeo.getPoint(item.value.location, (point) => {
+        if (point) {
+          map.value.centerAndZoom(point, 16)
+          const marker = new BMap.Marker(point)
+          map.value.addOverlay(marker)
+        }
+      }, "济南")
+    }
+  } catch (error) {
+    console.error('初始化地图失败:', error)
+  }
+}
+
+// 百度地图脚本加载完成后初始化地图
+onMounted(() => {
+  loadBaiduMap(() => {
+    initMap()
+  })
+})
 </script>
 
 <style scoped>
@@ -936,6 +1006,20 @@ watch(() => route.params.id, (newId) => {
   gap: 12px;
 }
 
+.map-container {
+  margin-top: 24px;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#container {
+  width: 100%;
+  height: 400px;
+  background: #f3f4f6;
+}
+
 @media (max-width: 768px) {
   .detail-container {
     grid-template-columns: 1fr;
@@ -955,6 +1039,10 @@ watch(() => route.params.id, (newId) => {
   
   .related-items-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  
+  #container {
+    height: 300px;
   }
 }
 </style>

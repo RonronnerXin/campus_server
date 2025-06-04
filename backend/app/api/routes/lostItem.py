@@ -127,6 +127,8 @@ def read_my_lost_items(
         # 转换为公开模型
         item_dict = item.model_dump()
         item_dict["images"] = image_urls
+        item_dict["owner_username"] = current_user.username
+        item_dict["owner_avatar"] = current_user.avatar
         result_items.append(parse_obj_as(LostItemPublic, item_dict))
 
     return LostItemsPublic(data=result_items, count=total_count, total_pages=total_pages)
@@ -163,6 +165,8 @@ def read_lost_item(
     # 转换为公开模型
     item_dict = item.model_dump()
     item_dict["images"] = image_urls
+    item_dict["owner_username"] = current_user.username
+    item_dict["owner_avatar"] = current_user.avatar
 
     return parse_obj_as(LostItemPublic, item_dict)
 
@@ -417,8 +421,13 @@ def delete_lost_item(
     if not current_user.is_superuser and item.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权删除此信息")
 
-    # 删除相关图片记录（物理文件删除可以通过后台任务处理）
-    session.exec(select(ItemImage).where(ItemImage.item_id == id)).delete()
+    # 删除相关图片记录
+    # 先查询出所有相关图片
+    item_images = session.query(ItemImage).filter(ItemImage.item_id == id).all()
+
+    # 逐个删除图片记录
+    for image in item_images:
+        session.delete(image)
 
     # 删除物品记录
     session.delete(item)

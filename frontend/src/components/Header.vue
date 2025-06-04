@@ -8,8 +8,8 @@
             <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2"/>
           </svg>
           <div class="logo-text">
-            <h1>校园寻物</h1>
-            <span>Campus Lost & Found</span>
+            <h1>大学生失物招领&社区交流平台</h1>
+            <span>Campus Lost-Found And Community</span>
           </div>
         </div>
       </div>
@@ -41,7 +41,7 @@
             <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" alt="用户头像" class="avatar" />
             <div class="user-info">
               <span class="username">{{appStore.userInfo.username}}</span>
-              <span class="user-role">计算机学院</span>
+              <span class="user-role">软件学院</span>
             </div>
             <ul v-show="showMenu" class="user-dropdown">
               <li><router-link to="/profile">个人中心</router-link></li>

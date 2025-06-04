@@ -21,15 +21,20 @@
         <h1 class="article-title">{{ article.title }}</h1>
         <div class="article-meta">
           <div class="author-info">
-            <img :src="article.author.avatar" :alt="article.author.name" class="author-avatar" />
-            <span class="author-name">{{ article.author.name }}</span>
+            <img 
+              :src="article.author_avatar || defaultAvatar" 
+              :alt="article.author_name" 
+              class="author-avatar"
+              @error="handleAvatarError"
+            />
+            <span class="author-name">{{ article.author_name }}</span>
           </div>
           <div class="meta-divider"></div>
           <div class="meta-item">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>{{ formatDate(article.published_at) }}</span>
+            <span>{{ formatDate(article.created_at) }}</span>
           </div>
           <div class="meta-divider"></div>
           <div class="meta-item">
@@ -55,14 +60,22 @@
         </div>
       </div>
       
-      <!-- 封面图 -->
-      <div v-if="article.cover_image" class="cover-image-container">
-        <img :src="article.cover_image" :alt="article.title" class="cover-image" />
-      </div>
       
       <!-- 文章内容 -->
       <div class="article-content" v-html="article.content"></div>
       
+      <!-- 文章图片 -->
+      <div v-if="article.images && article.images.length > 0" class="article-images">
+        <div 
+          v-for="(image, index) in article.images" 
+          :key="index" 
+          class="article-image-container"
+        >
+          <img :src="image"
+              :alt="`图片 ${index + 1}`" class="article-image" />
+        </div>
+      </div>
+
       <!-- 文章底部 -->
       <div class="article-footer">
         <div class="article-actions">
@@ -91,30 +104,6 @@
             <span>编辑</span>
           </button>
         </div>
-        
-        <!-- 作者信息卡片 -->
-        <div class="author-card">
-          <div class="author-card-header">
-            <img :src="article.author.avatar" :alt="article.author.name" class="author-card-avatar" />
-            <div class="author-card-info">
-              <h3 class="author-card-name">{{ article.author.name }}</h3>
-              <p class="author-card-bio">{{ article.author.bio || '这个人很懒，什么都没留下' }}</p>
-            </div>
-          </div>
-          <div class="author-card-stats">
-            <div class="stat-item">
-              <span class="stat-value">{{ article.author.articles_count }}</span>
-              <span class="stat-label">文章</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ article.author.followers_count }}</span>
-              <span class="stat-label">关注者</span>
-            </div>
-          </div>
-          <button class="follow-btn" :class="{ following: article.author.is_following }" @click="toggleFollow">
-            {{ article.author.is_following ? '已关注' : '关注作者' }}
-          </button>
-        </div>
       </div>
       
       <!-- 评论区 -->
@@ -124,7 +113,11 @@
         <!-- 评论输入框 -->
         <div class="comment-form">
           <div class="comment-avatar">
-            <img :src="currentUserAvatar" alt="Your Avatar" />
+            <img 
+              :src="currentUserAvatar || defaultAvatar" 
+              alt="Your Avatar"
+              @error="handleAvatarError"
+            />
           </div>
           <div class="comment-input-container">
             <textarea 
@@ -135,7 +128,7 @@
             ></textarea>
             <button 
               class="comment-submit" 
-              :disabled="!commentContent.trim()" 
+              :disabled="!commentContent" 
               @click="submitComment"
             >
               发布评论
@@ -144,14 +137,18 @@
         </div>
         
         <!-- 评论列表 -->
-        <div v-if="comments.length > 0" class="comments-list">
+        <div v-if="comments" class="comments-list">
           <div v-for="comment in comments" :key="comment.id" class="comment-item">
             <div class="comment-avatar">
-              <img :src="comment.user.avatar" :alt="comment.user.name" />
+              <img 
+                :src="comment.user_avatar || defaultAvatar" 
+                :alt="comment.user_name"
+                @error="handleAvatarError"
+              />
             </div>
             <div class="comment-content">
               <div class="comment-header">
-                <span class="comment-author">{{ comment.user.name }}</span>
+                <span class="comment-author">{{ comment.user_name }}</span>
                 <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
               </div>
               <p class="comment-text">{{ comment.content }}</p>
@@ -180,11 +177,11 @@
               <div v-if="comment.replies && comment.replies.length > 0" class="replies-list">
                 <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
                   <div class="comment-avatar small">
-                    <img :src="reply.user.avatar" :alt="reply.user.name" />
+                    <img :src="comment.user_avatar || defaultAvatar" :alt="reply.user_name" />
                   </div>
                   <div class="reply-content">
                     <div class="comment-header">
-                      <span class="comment-author">{{ reply.user.name }}</span>
+                      <span class="comment-author">{{ reply.user_name }} 回复 nihao</span>
                       <span v-if="reply.reply_to" class="reply-to">
                         回复 <span class="reply-to-name">@{{ reply.reply_to.name }}</span>
                       </span>
@@ -275,7 +272,7 @@
             <div class="related-article-content">
               <h3 class="related-article-title">{{ relatedArticle.title }}</h3>
               <div class="related-article-meta">
-                <span class="related-article-author">{{ relatedArticle.author.name }}</span>
+                <span class="related-article-author">{{ relatedArticle.author_name }}</span>
                 <span class="meta-divider">·</span>
                 <span class="related-article-date">{{ formatDate(relatedArticle.published_at, true) }}</span>
               </div>
@@ -356,8 +353,9 @@ const commentsPage = ref(1)
 const hasMoreComments = ref(false)
 
 // 当前用户信息 (实际应用中应从用户状态获取)
-const currentUserId = ref('user-123') // 示例ID，实际使用时应替换
-const currentUserAvatar = ref('https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face')
+const currentUserId = ref('384e528d-e853-4311-9840-824ac4fa06b2 ') // 示例ID，实际使用时应替换
+const defaultAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'
+const currentUserAvatar = ref(defaultAvatar)
 
 // 文章URL
 const articleUrl = computed(() => {
@@ -366,19 +364,19 @@ const articleUrl = computed(() => {
 
 // 判断当前用户是否为文章作者
 const isAuthor = computed(() => {
-  return article.value && article.value.author.id === currentUserId.value
+  return article.value && article.value.author_id === currentUserId.value
 })
 
 // 获取文章详情
 const fetchArticleDetail = async () => {
   loading.value = true
   try {
-    const response = await generalRequest(`/api/articles/${articleId.value}`, {
+    const response = await generalRequest(`/api/blog-posts/${articleId.value}`, {
       method: 'GET'
     })
     
-    if (response && response.data) {
-      article.value = response.data
+    if (response) {
+      article.value = response
       // 获取评论
       fetchComments()
       // 获取相关文章
@@ -398,7 +396,7 @@ const fetchArticleDetail = async () => {
 // 获取文章评论
 const fetchComments = async () => {
   try {
-    const response = await generalRequest(`/api/articles/${articleId.value}/comments`, {
+    const response = await generalRequest(`/api/blog-posts/${articleId.value}/comments`, {
       method: 'GET',
       params: {
         page: commentsPage.value,
@@ -408,12 +406,12 @@ const fetchComments = async () => {
     
     if (response && response.data) {
       if (commentsPage.value === 1) {
-        comments.value = response.data.data
+        comments.value = response.data
       } else {
-        comments.value = [...comments.value, ...response.data.data]
+        comments.value = [...comments.value, ...response.data]
       }
       
-      hasMoreComments.value = response.data.current_page < response.data.total_pages
+      hasMoreComments.value = response.current_page < response.total_pages
     }
   } catch (error) {
     console.error('获取评论失败:', error)
@@ -431,7 +429,7 @@ const fetchRelatedArticles = async () => {
   if (!article.value) return
   
   try {
-    const response = await generalRequest('/api/articles', {
+    const response = await generalRequest('/api/blog-posts', {
       method: 'GET',
       params: {
         category: article.value.category,
@@ -454,22 +452,23 @@ const submitComment = async () => {
   if (!commentContent.value.trim()) return
   
   try {
-    const response = await generalRequest(`/api/articles/${articleId.value}/comments`, {
+    // 创建 FormData 对象
+    const formData = new FormData()
+    formData.append('content', commentContent.value.trim())
+    
+    const response = await generalRequest(`/api/blog-posts/${articleId.value}/comments`, {
       method: 'POST',
-      data: {
-        content: commentContent.value
-      }
+      data: formData
     })
     
-    if (response && response.data) {
-      // 添加新评论到列表顶部
-      comments.value.unshift(response.data)
+    if (response) {
       // 更新文章评论数
       if (article.value) {
         article.value.comments_count++
       }
       // 清空输入框
       commentContent.value = ''
+      fetchComments()
     }
   } catch (error) {
     console.error('提交评论失败:', error)
@@ -504,22 +503,25 @@ const cancelReply = () => {
 const submitReply = async (comment) => {
   if (!replyContent.value.trim() || !replyingTo.value) return
   
-  try {    const response = await generalRequest(`/api/articles/${articleId.value}/comments/${comment.id}/replies`, {
+  try {    
+    
+    const formData = new FormData()
+    formData.append('content', replyContent.value.trim())
+    formData.append('parent_id', replyingTo.value.commentId)
+    
+    const response = await generalRequest(`/api/blog-posts/${articleId.value}/comments`, {
       method: 'POST',
-      data: {
-        content: replyContent.value,
-        reply_to_id: replyingTo.value.user ? replyingTo.value.user.id : null
-      }
+      data: formData
     })
     
-    if (response && response.data) {
+    if (response) {
       // 确保评论有replies数组
       if (!comment.replies) {
         comment.replies = []
       }
       
       // 添加新回复到列表
-      comment.replies.push(response.data)
+      comment.replies.push(response)
       
       // 更新文章评论数
       if (article.value) {
@@ -542,7 +544,7 @@ const toggleLike = async () => {
   
   try {
     const method = article.value.liked ? 'DELETE' : 'POST'
-    const response = await generalRequest(`/api/articles/${articleId.value}/like`, {
+    const response = await generalRequest(`/api/blog-posts/${articleId.value}/like`, {
       method
     })
     
@@ -561,7 +563,7 @@ const toggleLike = async () => {
 const toggleCommentLike = async (comment) => {
   try {
     const method = comment.liked ? 'DELETE' : 'POST'
-    const response = await generalRequest(`/api/comments/${comment.id}/like`, {
+    const response = await generalRequest(`/api/blog-posts/comments/${comment.id}/like`, {
       method
     })
     
@@ -580,7 +582,7 @@ const toggleCommentLike = async (comment) => {
 const toggleReplyLike = async (reply) => {
   try {
     const method = reply.liked ? 'DELETE' : 'POST'
-    const response = await generalRequest(`/api/replies/${reply.id}/like`, {
+    const response = await generalRequest(`/api/blog-posts/comments/${reply.id}/like`, {
       method
     })
     
@@ -680,8 +682,8 @@ const editArticle = () => {
 }
 
 // 查看其他文章
-const viewArticle = (id) => {
-  router.push(`/blog/${id}`)
+const viewArticle = (articleId) => {
+  router.push(`/blog/${articleId}`)
 }
 
 // 滚动到评论区
@@ -691,30 +693,21 @@ const scrollToComments = () => {
 
 // 返回列表页
 const goBack = () => {
-  router.push('/blog')
+  router.push('/community')
 }
 
 // 格式化日期
-const formatDate = (dateString, short = false) => {
+const formatDate = (dateString) => {
   if (!dateString) return ''
   
   const date = new Date(dateString)
-  
-  if (short) {
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    })
-  }
-  
   return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
-  })
+  }).replace(/\//g, '-')
 }
 
 // 获取默认封面图
@@ -724,12 +717,18 @@ const getDefaultCoverImage = () => {
 
 // 判断当前用户是否为评论作者
 const isCommentAuthor = (comment) => {
-  return comment.user.id === currentUserId.value
+  return comment.user_id === currentUserId.value
 }
 
 // 判断当前用户是否为回复作者
 const isReplyAuthor = (reply) => {
-  return reply.user.id === currentUserId.value
+  console.log(reply.user_id===currentUserId.value)
+  return reply.user_id === currentUserId.value
+}
+
+// 头像加载失败时的处理函数
+const handleAvatarError = (e) => {
+  e.target.src = defaultAvatar
 }
 
 // 监听路由参数变化
@@ -1205,6 +1204,7 @@ watch(() => route.params.id, (newId) => {
   line-height: 1.6;
   color: #4b5563;
   margin-bottom: 12px;
+  text-align: left;
 }
 
 .comment-actions {
@@ -1640,6 +1640,10 @@ watch(() => route.params.id, (newId) => {
   }
   
   .related-articles-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .article-images {
     grid-template-columns: 1fr;
   }
 }

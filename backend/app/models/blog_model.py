@@ -95,6 +95,8 @@ class BlogImage(SQLModel, table=True):
 class BlogPostPublic(BlogPostBase):
     id: uuid.UUID
     author_id: uuid.UUID
+    author_name: str
+    author_avatar: str
     status: BlogStatus
     images: List[str] = []  # 简化为图片URL列表
     tags: List[str]
@@ -104,6 +106,7 @@ class BlogPostPublic(BlogPostBase):
     likes_count: int
     comments_count: int
     liked: bool = False  # 当前用户是否点赞
+    comments: List[str] = []
 
 
 class BlogPostsPublic(SQLModel):

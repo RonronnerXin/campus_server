@@ -24,30 +24,6 @@ from app.utils import CaptchaService, EmailCodeService, generate_email_code_temp
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("/register")
-def register_user(user_in: UserRegister, session: Session = Depends(get_db)) -> Any:
-    user = get_user_by_email(session, email=user_in.email)
-    if user:
-        raise HTTPException(status_code=400, detail="该邮箱已被注册")
-    user = create_user(session=session, user_create=user_in)
-    return user
-
-@router.post("/login")
-def login_user(session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
-) -> UserToken:
-    user = authenticate_user(session=session, email=form_data.username, password=form_data.password)
-    if not user:
-        raise HTTPException(status_code=400, detail="用户账号或密码错误")
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-
-    return UserToken(
-        access_token=security.create_access_token(
-            user.id, expires_delta=access_token_expires
-        ),
-        user_id=user.id,
-        username=user.username,
-        avatar=user.avatar or ""  # 头像路径，若无则返回空字符串
-    )
 
 @router.post("/password", response_model=Message)
 def update_password_me(
@@ -65,7 +41,7 @@ def update_password_me(
     session.commit()
     return Message(message="密码修改成功")
 
-@router.get("/getValidateCode")
+@router.get("/validateCode")
 async def get_captcha():
     # 调用验证码生成服务
     base64_img, result = await CaptchaService.create_captcha_image_service()
@@ -75,7 +51,7 @@ async def get_captcha():
     }
 
 
-@router.post("/testValidateInfo")
+@router.post("/validateCode")
 async def validate_code(request: ValidateRequest):
     if request.validate_code_id == request.validate_code:
         is_valid = True
@@ -87,7 +63,7 @@ async def validate_code(request: ValidateRequest):
     }
 
 
-@router.post("/getEmailCode")
+@router.post("/emailCode")
 async def send_email_code(request: EmailCodeRequest):
     # 生成并存储验证码
     code = EmailCodeService.generate_code()
@@ -110,7 +86,7 @@ async def send_email_code(request: EmailCodeRequest):
 
     return {"code": 0}
 
-@router.post("/verifyEmailCode")
+@router.post("/emailCodeVerification")
 async def verify_email_code(request: EmailValidateRequest):
     if not EmailCodeService.validate_code(request.email, request.validateCode):
         raise HTTPException(400, "验证码错误或已过期")

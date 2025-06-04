@@ -70,6 +70,24 @@
             class="form-input"
           />
         </div>
+          <div>
+          <div class="form-group">
+              <label for="location">定位选择</label>
+            <input placeholder="请在地图中选择地点" class="form-input" id="suggestId" type="text" size="30" style="width:300px" />
+          </div>
+          <!-- <div class="lng-lat">
+            <div class="item">
+              当前经度:
+              <input v-model="lng" />
+            </div>
+            <div class="item">
+              当前纬度:
+              <input v-model="lat" />
+            </div>
+          </div> -->
+          <!-- <div id="searchResultPanel"></div> -->
+          <div id="container" style="width: 600px; height: 400px;"></div>
+        </div>
         
         <div class="form-group">
           <label for="time">时间</label>
@@ -101,12 +119,6 @@
                 placeholder="请输入联系方式"
                 class="contact-value-input"
               />
-            </div>
-            <div class="contact-privacy">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="formData.hideContact" />
-                <span>仅通过站内消息联系我</span>
-              </label>
             </div>
           </div>
         </div>
@@ -161,7 +173,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onBeforeUnmount } from 'vue';
+import { ref, reactive, onBeforeUnmount, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { createLostItem } from '../services/lostItemServ';
 
@@ -169,6 +181,10 @@ const router = useRouter();
 const fileInput = ref(null);
 const dragover = ref(false);
 const submitting = ref(false);
+const map = ref(null)
+const myValue = ref('')
+const lng = ref('')
+const lat = ref('')
 
 const formData = reactive({
   type: 'lost',
@@ -309,6 +325,75 @@ onBeforeUnmount(() => {
     URL.revokeObjectURL(image.url);
   });
 });
+
+const loadBaiduMap = (callback) => {
+  if (typeof BMap !== "undefined") {
+    callback()
+    return
+  }
+
+  const script = document.createElement("script")
+  script.type = "text/javascript"
+  script.src = "http://api.map.baidu.com/api?v=2.0&ak=mK5CDIAi1mk8Le8z3RCTto1KLzGCG0hQ&callback=initBMap&address=济南"
+  document.head.appendChild(script)
+
+  window.initBMap = () => {
+    callback()
+  }
+}
+
+const initMap = () => {
+  map.value = new BMap.Map("container")
+  const centerPoint = new BMap.Point(116.3964, 39.9093)
+  map.value.centerAndZoom(centerPoint, 13)
+  map.value.enableScrollWheelZoom()
+
+  const ac = new BMap.Autocomplete({
+    input: "suggestId",
+    location: map.value,
+  })
+
+  ac.addEventListener("onconfirm", (e) => {
+    const _value = e.item.value
+    myValue.value = _value.province + _value.city + _value.district + _value.street + _value.business
+    setPlace()
+  })
+  map.value.addEventListener("click", (e) => {
+    lng.value = e.point.lng.toFixed(6)
+    lat.value = e.point.lat.toFixed(6)
+    addMarker(new BMap.Point(e.point.lng, e.point.lat))
+  })
+}
+
+const setPlace = () => {
+  const myGeo = new BMap.Geocoder()
+  myGeo.getPoint(myValue.value, (point) => {
+    if (point) {
+      map.value.centerAndZoom(point, 16)
+      addMarker(point)
+    }
+  }, "北京")
+}
+
+const addMarker = (point) => {
+  clearMarkers()
+  const marker = new BMap.Marker(point)
+  map.value.addOverlay(marker)
+}
+
+const clearMarkers = () => {
+  const allOverlay = map.value.getOverlays()
+  for (let i = 0; i < allOverlay.length - 1; i++) {
+    map.value.removeOverlay(allOverlay[i])
+  }
+}
+
+onMounted(() => {
+  loadBaiduMap(() => {
+    initMap()
+  })
+})
+
 </script>
 
 <style scoped>
@@ -590,6 +675,13 @@ onBeforeUnmount(() => {
 .submit-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.lng-lat {
+  margin: 0 0 30px 0px;
+}
+.lng-lat .item {
+  margin: 10px;
 }
 
 @media (max-width: 768px) {

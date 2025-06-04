@@ -17,14 +17,13 @@ const routes = [
     component: Home,
     children: [
       {
-        path: '',
-        name: 'PostList',
-        component: PostList
-      },
-      {
-        path: 'lost-found',
+        path: '', // 默认子路由
         name: 'LostFound',
         component: LostFound
+      },
+      {
+        path: 'lost-found', // 保留这个路由
+        redirect: '/' // 重定向到根路径
       },
       {
         path: 'community',
@@ -48,7 +47,7 @@ const routes = [
       },
       {
         path: 'blogdetail/:id',
-        name: 'BlogDetail',
+        name: 'PostDetail',
         component: PostDetail
       }
     ]

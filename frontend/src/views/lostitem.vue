@@ -141,6 +141,7 @@ const items = ref([])
 const loading = ref(false)
 const searchTimeout = ref(null)
 
+
 // 默认用户头像
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face'
 

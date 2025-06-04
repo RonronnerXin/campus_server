@@ -7,7 +7,7 @@ import {
 
 export async function userLoginReq(username: string, password: string): Promise<any> {
   try {
-    const res = await axios.post('/api/users/login', qs.stringify({ // 转换为 username=xxx&password=yyy
+    const res = await axios.post('/api/auth/login', qs.stringify({ // 转换为 username=xxx&password=yyy
       username: username,
       password: password
     }),

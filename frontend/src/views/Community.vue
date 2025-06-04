@@ -15,13 +15,23 @@
     </div>
 
     <div class="posts-container">
-      <div v-for="post in filteredPosts" :key="post.id" class="post-card">
+      <div 
+        v-for="post in posts" 
+        :key="post.id" 
+        class="post-card"
+        @click="viewPostDetail(post.id)"
+      >
         <div class="post-header">
           <div class="user-info">
-            <img :src="post.user.avatar" :alt="post.user.name" class="user-avatar" />
+            <img 
+              :src="post.author_avatar || defaultAvatar" 
+              :alt="post.author_name" 
+              class="user-avatar" 
+              @error="handleAvatarError"
+            />
             <div class="user-details">
-              <div class="user-name">{{ post.user.name }}</div>
-              <div class="post-time">{{ post.time }}</div>
+              <div class="user-name">{{ post.author_name }}</div>
+              <div class="post-time">{{ post.created_at }}</div>
             </div>
           </div>
           <div class="post-tag" :class="post.category">{{ getCategoryName(post.category) }}</div>
@@ -51,7 +61,7 @@
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z" stroke="currentColor" stroke-width="2"/>
               </svg>
-              <span>{{ post.comments.length }}</span>
+              <span>{{ post.comments_count }}</span>
             </button>
             
             <button class="action-btn">
@@ -62,222 +72,249 @@
             </button>
           </div>
         </div>
-        
-        <!-- 评论区域 -->
-        <div v-if="showComments[post.id]" class="comments-section">
-          <div class="comment-input">
-            <img src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face" alt="我的头像" class="comment-avatar" />
-            <div class="comment-input-wrapper">
-              <input 
-                type="text" 
-                v-model="commentInputs[post.id]" 
-                placeholder="写下你的评论..."
-                class="comment-text-input"
-                @keyup.enter="addComment(post.id)"
-              />
-              <button class="comment-submit" @click="addComment(post.id)">发送</button>
-            </div>
-          </div>
-          
-          <div class="comments-list">
-            <div v-for="comment in post.comments" :key="comment.id" class="comment-item">
-              <img :src="comment.user.avatar" :alt="comment.user.name" class="comment-avatar" />
-              <div class="comment-content">
-                <div class="comment-header">
-                  <span class="comment-user">{{ comment.user.name }}</span>
-                  <span class="comment-time">{{ comment.time }}</span>
-                </div>
-                <p class="comment-text">{{ comment.content }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { generalRequest } from '../services/genServ' // 根据实际路径调整
 
+const router = useRouter()
+const searchQuery = ref('')
+const selectedCategory = ref('')
+const selectedTag = ref('')
 const activeTab = ref('all')
-const showComments = reactive({})
-const commentInputs = reactive({})
+const currentPage = ref(1)
+const postsPerPage = 20
+const totalPages = ref(1)
+const totalCount = ref(0)
+const posts = ref([])
+const loading = ref(false)
+const searchTimeout = ref(null)
+const popularTags = ref(['技术分享', '学习笔记', '生活感悟', '旅行日记', '编程', '前端', '后端', '数据库'])
 
+// 默认用户头像
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face'
+// 默认头像
+const defaultAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'
+
+// 标签页配置
 const tabs = ref([
   { id: 'all', name: '全部' },
-  { id: 'study', name: '技术' },
-  { id: 'life', name: '生活' },
-  { id: 'food', name: '学习' },
-  { id: 'activity', name: '旅行' }
+  { id: 'featured', name: '推荐' },
+  { id: 'latest', name: '最新' }
 ])
 
-const posts = ref([
-  {
-    id: 1,
-    title: '图书馆自习位推荐',
-    content: '分享几个图书馆的绝佳自习位置，安静且光线充足，特别适合考研党！三楼靠窗的位置视野很好，四楼的讨论区适合小组学习。记得早点去占位哦～',
-    category: 'study',
-    time: '2小时前',
-    likes: 24,
-    liked: false,
-    user: {
-      name: '学霸小王',
-      avatar: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face'
-    },
-    images: [
-      'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=300&fit=crop',
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop'
-    ],
-    comments: [
-      {
-        id: 1,
-        content: '谢谢分享！明天就去试试',
-        time: '1小时前',
-        user: {
-          name: '努力学习中',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40&h=40&fit=crop&crop=face'
-        }
-      }
-    ]
-  },
-  {
-    id: 2,
-    title: '食堂新品尝鲜报告',
-    content: '今天试了食堂新推出的麻辣香锅，味道真的不错！料很足，价格也合理，15元一份。推荐大家去试试，就在二楼新开的窗口。',
-    category: 'food',
-    time: '4小时前',
-    likes: 18,
-    liked: true,
-    user: {
-      name: '美食探索者',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop&crop=face'
-    },
-    images: [
-      'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop'
-    ],
-    comments: [
-      {
-        id: 1,
-        content: '看起来就很香！',
-        time: '3小时前',
-        user: {
-          name: '吃货小李',
-          avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=40&h=40&fit=crop&crop=face'
-        }
-      },
-      {
-        id: 2,
-        content: '明天中午就去试试',
-        time: '2小时前',
-        user: {
-          name: '张同学',
-          avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=40&h=40&fit=crop&crop=face'
-        }
-      }
-    ]
-  },
-  {
-    id: 3,
-    title: '宿舍生活小贴士',
-    content: '分享一些宿舍生活的实用小技巧：1. 用收纳盒整理桌面 2. 定期清洁空调滤网 3. 合理安排作息时间 4. 与室友保持良好沟通。希望对大家有帮助！',
-    category: 'life',
-    time: '1天前',
-    likes: 32,
-    liked: false,
-    user: {
-      name: '生活达人',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'
-    },
-    images: [],
-    comments: [
-      {
-        id: 1,
-        content: '很实用的建议！',
-        time: '20小时前',
-        user: {
-          name: '室友A',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face'
-        }
-      }
-    ]
-  },
-  {
-    id: 4,
-    title: '周末音乐节活动预告',
-    content: '本周六晚上7点，学生活动中心将举办校园音乐节，有多个社团表演，还有抽奖环节！免费入场，欢迎大家来参加～',
-    category: 'activity',
-    time: '2天前',
-    likes: 45,
-    liked: true,
-    user: {
-      name: '活动组织者',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face'
-    },
-    images: [
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop'
-    ],
-    comments: [
-      {
-        id: 1,
-        content: '期待！一定会去的',
-        time: '1天前',
-        user: {
-          name: '音乐爱好者',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40&h=40&fit=crop&crop=face'
-        }
-      }
-    ]
+// 计算要显示的页码（最多显示5个页码）
+const displayedPages = computed(() => {
+  if (totalPages.value <= 5) {
+    return Array.from({ length: totalPages.value }, (_, i) => i + 1)
   }
-])
-
-const filteredPosts = computed(() => {
-  if (activeTab.value === 'all') {
-    return posts.value
+  
+  let start = Math.max(1, currentPage.value - 2)
+  let end = Math.min(totalPages.value, start + 4)
+  
+  if (end - start < 4) {
+    start = Math.max(1, end - 4)
   }
-  return posts.value.filter(post => post.category === activeTab.value)
+  
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
 
+// 获取博客文章列表
+const fetchPosts = async () => {
+  loading.value = true
+  try {
+    const params = {
+      skip: (currentPage.value - 1) * postsPerPage,
+      limit: postsPerPage,
+      category: selectedCategory.value || undefined,
+      tag: selectedTag.value || undefined,
+      q: searchQuery.value || undefined
+    }
+
+    // 根据标签页类型添加参数
+    if (activeTab.value === 'featured') {
+      params.featured = true
+    }
+
+    const response = await generalRequest('/api/blog-posts/', {
+      method: 'GET',
+      params
+    })
+
+    if (response && response.data) {
+      posts.value = response.data
+      totalCount.value = response.count
+      totalPages.value = response.total_pages
+    } else {
+      console.error('获取数据失败: 响应格式不正确', response)
+      posts.value = []
+    }
+  } catch (error) {
+    console.error('获取数据失败:', error)
+    posts.value = []
+    if (error.response && error.response.status === 403) {
+      if (confirm('您的登录状态已过期，请先登录')) {
+        router.push('/login')
+      }
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 获取博客封面图片
+const getPostImage = (post) => {
+  if (post.images && post.images.length > 0) {
+    // 检查是否已经是完整URL
+    if (post.images[0].startsWith('http')) {
+      return post.images[0]
+    }
+    // 拼接完整的API地址
+    return `http://localhost:8000${post.images[0]}`
+  }
+
+  // 默认图片逻辑
+  const defaultImages = {
+    'tech': 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=300&h=200&fit=crop',
+    'life': 'https://images.unsplash.com/photo-1483794344563-d27a8d18014e?w=300&h=200&fit=crop',
+    'study': 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=300&h=200&fit=crop',
+    'travel': 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=300&h=200&fit=crop',
+    'other': 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=300&h=200&fit=crop'
+  }
+  return defaultImages[post.category] || defaultImages.other
+}
+
+// 获取用户头像
+const getUserAvatar = (userId) => {
+  // 这里可以根据用户ID获取用户头像，现在使用默认头像
+  return DEFAULT_AVATAR
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 获取分类名称
 const getCategoryName = (category) => {
   const categoryMap = {
-    study: '学习交流',
-    life: '校园生活',
-    food: '美食分享',
-    activity: '活动推荐'
+    'tech': '技术',
+    'life': '生活',
+    'study': '学习',
+    'travel': '旅行',
+    'other': '其他'
   }
   return categoryMap[category] || '其他'
 }
 
-const toggleLike = (post) => {
-  post.liked = !post.liked
-  post.likes += post.liked ? 1 : -1
+// 处理标签切换
+const handleTabChange = (tabId) => {
+  activeTab.value = tabId
+  currentPage.value = 1
+  fetchPosts()
 }
 
-const toggleComments = (postId) => {
-  showComments[postId] = !showComments[postId]
-  if (!commentInputs[postId]) {
-    commentInputs[postId] = ''
+// 处理筛选条件变化
+const handleFilterChange = () => {
+  currentPage.value = 1
+  fetchPosts()
+}
+
+// 处理搜索（带防抖）
+const handleSearchDebounce = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
   }
-}
-
-const addComment = (postId) => {
-  const content = commentInputs[postId]?.trim()
-  if (!content) return
   
-  const post = posts.value.find(p => p.id === postId)
-  if (post) {
-    post.comments.push({
-      id: Date.now(),
-      content: content,
-      time: '刚刚',
-      user: {
-        name: '我',
-        avatar: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=40&h=40&fit=crop&crop=face'
+  searchTimeout.value = setTimeout(() => {
+    currentPage.value = 1
+    fetchPosts()
+  }, 500) // 500ms防抖
+}
+
+// 处理分页变化
+const handlePageChange = (page) => {
+  currentPage.value = page
+  fetchPosts()
+  // 滚动到页面顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// 查看博客详情
+const viewPostDetail = (postId) => {
+  router.push(`/blogdetail/${postId}`)
+}
+
+// 点赞/取消点赞
+const toggleLike = async (post) => {
+  event.stopPropagation() // 阻止冒泡，避免触发卡片点击
+  
+  try {
+    if (post.liked) {
+      // 取消点赞
+      await generalRequest(`/api/blog-posts/${post.id}/like`, {
+        method: 'DELETE'
+      })
+      post.likes_count = Math.max(0, post.likes_count - 1)
+    } else {
+      // 点赞
+      await generalRequest(`/api/blog-posts/${post.id}/like`, {
+        method: 'POST'
+      })
+      post.likes_count += 1
+    }
+    post.liked = !post.liked
+  } catch (error) {
+    console.error('点赞操作失败:', error)
+    if (error.response && error.response.status === 401) {
+      if (confirm('请先登录后再进行操作')) {
+        router.push('/login')
       }
-    })
-    commentInputs[postId] = ''
+    }
   }
 }
+
+// 默认头像加载失败时的处理函数
+const handleAvatarError = (e) => {
+  e.target.src = defaultAvatar
+}
+
+// 初始化加载数据
+onMounted(() => {
+  fetchPosts()
+})
+
+// 监听路由参数变化（如果有）
+watch(() => router.currentRoute.value.query, (newQuery) => {
+  if (newQuery.category) {
+    selectedCategory.value = newQuery.category
+  }
+  if (newQuery.tag) {
+    selectedTag.value = newQuery.tag
+  }
+  if (newQuery.q) {
+    searchQuery.value = newQuery.q
+  }
+  if (newQuery.featured === 'true') {
+    activeTab.value = 'featured'
+  }
+  
+  // 如果有查询参数变化，重新获取数据
+  fetchPosts()
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -338,6 +375,7 @@ const addComment = (postId) => {
   border-radius: 12px;
   padding: 20px;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .post-card:hover {
@@ -450,6 +488,16 @@ const addComment = (postId) => {
   aspect-ratio: 16/9;
   overflow: hidden;
   border-radius: 8px;
+  max-height: 200px; /* 添加最大高度限制 */
+}
+
+.post-images.images-1 .image-wrapper {
+  max-height: 300px; /* 单张图片可以稍大一些 */
+}
+
+.post-images.images-2 .image-wrapper,
+.post-images.images-3 .image-wrapper {
+  max-height: 180px; /* 多张图片时设置更小的高度 */
 }
 
 .post-image {
@@ -630,6 +678,14 @@ const addComment = (postId) => {
   .comment-input-wrapper {
     flex-direction: column;
     gap: 8px;
+  }
+  
+  .image-wrapper {
+    max-height: 160px; /* 移动端更小 */
+  }
+  
+  .post-images.images-1 .image-wrapper {
+    max-height: 200px; /* 移动端单张图片高度 */
   }
 }
 </style>
