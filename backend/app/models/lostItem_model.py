@@ -31,7 +31,6 @@ class ContactType(str, Enum):
     QQ = "qq"  # QQ
 
 class LostItemBase(SQLModel):
-    __tablename__ = "lostItem"  # 明确指定表名
     type: ItemType  # 信息类型：寻物启事/招领启事
     title: str = Field(min_length=1, max_length=255)
     category: ItemCategory  # 物品分类
@@ -41,6 +40,8 @@ class LostItemBase(SQLModel):
     contact_type: ContactType  # 联系方式类型
     contact_value: Optional[str] = Field(default=None, max_length=255)  # 联系方式值
     hide_contact: bool = Field(default=False)  # 是否隐藏联系方式
+    lat: Optional[float] = Field(default=None, description="纬度")
+    lng: Optional[float] = Field(default=None, description="经度")
 
 
 class LostItemCreate(LostItemBase):
@@ -57,6 +58,7 @@ class LostItem(LostItemBase, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     views_count: int = Field(default=0)  # 浏览次数
+
 
 
 
@@ -88,3 +90,7 @@ class LostItemsPublic(SQLModel):
     data: List[LostItemPublic]
     count: int
     total_pages: int
+
+
+class StatusUpdateRequest(SQLModel):
+    status: ItemStatus

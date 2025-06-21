@@ -31,7 +31,7 @@ export const useAppStore = defineStore("app", {
         id: res.user_id,
         roles: res.roles,
         password: res.password,
-        avatar:"src/resource/"+res.icon
+        avatar:res.avatar
       };
       return this.userInfo;;
     },

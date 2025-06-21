@@ -92,7 +92,7 @@ export async function resetPassword(
   current_password: string,
   new_password: string
 ): Promise<DataResponse> {
-  const res = await generalRequest("/auth/users/password", 
+  const res = await generalRequest("/api/users/password", 
     {
       method: "POST",
       data: {

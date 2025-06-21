@@ -475,26 +475,21 @@ const loadBaiduMap = (callback) => {
 
 const initMap = () => {
   try {
-    // 确保 DOM 元素存在
     if (!document.getElementById('container')) {
       console.error('地图容器不存在')
       return
     }
 
-    // 创建地图实例
     map.value = new BMap.Map("container")
-    
-    // 默认中心点（济南）
-    const centerPoint = new BMap.Point(117.121225, 36.651316)
-    map.value.centerAndZoom(centerPoint, 13)
-    map.value.enableScrollWheelZoom()
 
-    // 添加控件
-    map.value.addControl(new BMap.NavigationControl())
-    map.value.addControl(new BMap.ScaleControl())
-
-    // 如果有物品位置信息，设置标记
-    if (item.value && item.value.location) {
+    // 优先使用后端传来的经纬度
+    if (item.value && item.value.lng && item.value.lat) {
+      const point = new BMap.Point(Number(item.value.lng), Number(item.value.lat))
+      map.value.centerAndZoom(point, 16)
+      const marker = new BMap.Marker(point)
+      map.value.addOverlay(marker)
+    } else if (item.value && item.value.location) {
+      // 兼容老数据：用地名反查坐标
       const myGeo = new BMap.Geocoder()
       myGeo.getPoint(item.value.location, (point) => {
         if (point) {
@@ -503,7 +498,15 @@ const initMap = () => {
           map.value.addOverlay(marker)
         }
       }, "济南")
+    } else {
+      // 默认中心点（济南）
+      const centerPoint = new BMap.Point(117.121225, 36.651316)
+      map.value.centerAndZoom(centerPoint, 13)
     }
+
+    map.value.enableScrollWheelZoom()
+    map.value.addControl(new BMap.NavigationControl())
+    map.value.addControl(new BMap.ScaleControl())
   } catch (error) {
     console.error('初始化地图失败:', error)
   }

@@ -9,6 +9,9 @@ import PublishPost from '../views/PublishPost.vue'
 import PostList from '../components/PostList.vue'
 import LostItemDetail from '../views/itemdetail.vue'
 import PostDetail from '../views/blogdetail.vue'
+import Profile from '../views/profile.vue'
+import BlogEditor from '../views/blogeditor.vue'
+import LostItemEditor from '../views/lostitemeditor.vue'
 
 const routes = [
   {
@@ -49,7 +52,22 @@ const routes = [
         path: 'blogdetail/:id',
         name: 'PostDetail',
         component: PostDetail
-      }
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: Profile
+      },
+        {
+        path: '/blog/edit/:id',
+        name: 'EditBlog',
+        component: BlogEditor,
+      },
+        {
+        path: '/lost-found/edit/:id',
+        name: 'EditLostItem',
+        component: LostItemEditor,
+      },
     ]
   },
   {

@@ -38,14 +38,14 @@
         
         <template v-if="appStore.userInfo.loggedIn">
           <div class="user-menu" @click="toggleMenu">
-            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" alt="用户头像" class="avatar" />
-            <div class="user-info">
+          <img :src="appStore.userInfo.avatar || defaultAvatar" alt="用户头像" class="avatar" />            
+          <div class="user-info">
               <span class="username">{{appStore.userInfo.username}}</span>
               <span class="user-role">软件学院</span>
             </div>
             <ul v-show="showMenu" class="user-dropdown">
               <li><router-link to="/profile">个人中心</router-link></li>
-              <li><router-link to="/change-password">修改密码</router-link></li>
+              <li @click="showPasswordDialog">修改密码</li>
               <li @click="appStore.logout">注销</li>
             </ul>
           </div>
@@ -59,19 +59,71 @@
       </nav>
     </div>
   </header>
+
+  <!-- Add the dialog component at the bottom of the template -->
+  <el-dialog
+    style="border-radius: 30px;"
+    v-model="passwordDialogVisible"
+    title="重置密码"
+    width="600px"
+  >
+    <div class="password-form">
+      <el-form :model="passwordForm" label-width="100px">
+        <el-form-item label="旧密码">
+          <el-input v-model="passwordForm.oldPassword" show-password />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="passwordForm.newPassword" show-password />
+        </el-form-item>
+        <el-form-item label="确认密码">
+          <el-input v-model="passwordForm.confirmPassword" show-password />
+        </el-form-item>
+      </el-form>
+      <div class="dialog-actions">
+        <el-button type="primary" @click="submitPassword">确认重置</el-button>
+      </div>
+    </div>
+  </el-dialog>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
 import { useAppStore } from '../stores/app';
+import { resetPassword } from '../services/userServ';
+import { success, error } from '../tools/messageBox';
 
 const appStore = useAppStore();
 const searchQuery = ref('');
 const showMenu = ref(false);
+const passwordDialogVisible = ref(false);
+const passwordForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+});
 
 const toggleMenu = () => {
   showMenu.value = !showMenu.value;
 };
+
+const showPasswordDialog = () => {
+  passwordDialogVisible.value = true;
+};
+
+const submitPassword = async () => {
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    error('新密码和确认密码不一致');
+    return;
+  }
+  const res = await resetPassword(passwordForm.value.oldPassword, passwordForm.value.newPassword)
+  console.log(res)
+  if (res.message == '密码修改成功') {
+    success(res.message)
+    passwordDialogVisible.value = false
+  } else {
+    error('密码重置失败，请重试')
+  }
+}
 </script>
 
 <style scoped>
@@ -328,6 +380,59 @@ const toggleMenu = () => {
   color: inherit;
   text-decoration: none;
   display: block;
+}
+
+.password-form {
+  padding: 20px;
+}
+
+.dialog-actions {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.el-dialog__header {
+  border-bottom: none;
+}
+
+.el-dialog__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.el-dialog__body {
+  padding: 0;
+}
+
+.el-form-item {
+  margin-bottom: 16px;
+}
+
+.el-input {
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.el-input--suffix {
+  margin-right: 8px;
+}
+
+.el-button--primary {
+  background: #667eea;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.el-button--primary:hover {
+  background: #5a67d8;
 }
 
 @media (max-width: 768px) {

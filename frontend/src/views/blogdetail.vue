@@ -296,32 +296,6 @@
     <div v-if="showShareDialog" class="modal-overlay" @click="showShareDialog = false">
       <div class="modal-container share-dialog" @click.stop>
         <h3>分享文章</h3>
-        <div class="share-options">
-          <button class="share-option wechat">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M9.5 9.5C9.5 8.12 10.62 7 12 7s2.5 1.12 2.5 2.5S13.38 12 12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 12v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>微信</span>
-          </button>
-          <button class="share-option weibo">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M9.5 9.5C9.5 8.12 10.62 7 12 7s2.5 1.12 2.5 2.5S13.38 12 12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 12v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>微博</span>
-          </button>
-          <button class="share-option qq">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M9.5 9.5C9.5 8.12 10.62 7 12 7s2.5 1.12 2.5 2.5S13.38 12 12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 12v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>QQ</span>
-          </button>
-        </div>
         <div class="share-link">
           <input type="text" :value="articleUrl" readonly class="share-link-input" />
           <button class="copy-link-btn" @click="copyArticleLink">复制链接</button>
@@ -353,7 +327,7 @@ const commentsPage = ref(1)
 const hasMoreComments = ref(false)
 
 // 当前用户信息 (实际应用中应从用户状态获取)
-const currentUserId = ref('384e528d-e853-4311-9840-824ac4fa06b2 ') // 示例ID，实际使用时应替换
+const currentUserId = ref('384e528d-e853-4311-9840-824ac4fa06b2 ') 
 const defaultAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'
 const currentUserAvatar = ref(defaultAvatar)
 
@@ -1399,13 +1373,23 @@ watch(() => route.params.id, (newId) => {
 }
 
 .related-article-image {
-  height: 160px;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .related-article-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: cover; /* 关键：让图片裁剪填满容器 */
+  border-radius: 0;
+  display: block;
+  margin: 0;
+  max-width: none;   /* 关键：防止max-width限制 */
+  max-height: none;  /* 关键：防止max-height限制 */
 }
 
 .related-article-content {

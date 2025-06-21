@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, List
+from typing import Any, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Query
@@ -10,7 +10,7 @@ from app.api.deps import CurrentUser, SessionDep
 from app.models.lostItem_model import (
     LostItem, LostItemCreate, LostItemPublic, LostItemsPublic,
     ItemImage, ItemType, ItemCategory, ItemStatus, ContactType,
-    Message
+    Message, StatusUpdateRequest
 )
 from app.utils import upload_file_to_storage
 
@@ -184,6 +184,8 @@ async def create_lost_item(
         contact_type: ContactType = Form(...),
         contact_value: str = Form(None),
         hide_contact: bool = Form(False),
+        lat: Optional[float] = Form(...),
+        lng: Optional[float] = Form(...),
         images: List[UploadFile] = File(None),
 ) -> Any:
     """
@@ -206,7 +208,9 @@ async def create_lost_item(
         "contact_value": contact_value,
         "hide_contact": hide_contact,
         "owner_id": current_user.id,
-        "status": ItemStatus.UNCLAIMED
+        "status": ItemStatus.UNCLAIMED,
+        "lat": lat,
+        "lng": lng,
     }
 
     item = LostItem(**item_data)
@@ -259,7 +263,7 @@ async def create_lost_item(
     return response_data
 
 
-@router.put("/{id}", response_model=LostItemPublic)
+@router.put("/{id}", response_model=Message)
 async def update_lost_item(
         session: SessionDep,
         current_user: CurrentUser,
@@ -364,16 +368,15 @@ async def update_lost_item(
     item_dict = item.model_dump()
     item_dict["images"] = all_image_urls
 
-    return parse_obj_as(LostItemPublic, item_dict)
+    return Message(message="修改成功！")
 
 
-@router.patch("/{id}/status", response_model=LostItemPublic)
+@router.put("/{id}/status", response_model=Message)
 def update_item_status(
         session: SessionDep,
         current_user: CurrentUser,
         id: uuid.UUID,
-        status: ItemStatus,
-) -> Any:
+        status: StatusUpdateRequest) -> Any:
     """
     更新物品状态（认领/未认领/过期）。
     """
@@ -386,7 +389,7 @@ def update_item_status(
         raise HTTPException(status_code=403, detail="无权修改此信息")
 
     # 更新状态
-    item.status = status
+    item.status = status.status
     item.updated_at = datetime.now()
 
     session.add(item)
@@ -401,7 +404,7 @@ def update_item_status(
     item_dict = item.model_dump()
     item_dict["images"] = image_urls
 
-    return parse_obj_as(LostItemPublic, item_dict)
+    return Message(message="状态修改成功！")
 
 
 @router.delete("/{id}")

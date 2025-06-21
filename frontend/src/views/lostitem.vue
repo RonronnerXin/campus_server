@@ -37,14 +37,6 @@
           <option value="clothing">衣物</option>
           <option value="other">其他</option>
         </select>
-        <select v-model="selectedLocation" class="filter-select" @change="handleFilterChange">
-          <option value="">全部地点</option>
-          <option value="library">图书馆</option>
-          <option value="classroom">教室</option>
-          <option value="canteen">食堂</option>
-          <option value="dorm">宿舍楼</option>
-          <option value="other">其他</option>
-        </select>
       </div>
     </div>
 
@@ -403,9 +395,10 @@ watch(() => router.currentRoute.value.query, (newQuery) => {
 .filter-options {
   flex-shrink: 0;
   min-width: 200px;
-  max-width: 350px;
   gap: 12px;
   display: flex;
+  justify-content: flex-end; /* 新增，让内容靠右 */
+
 }
 
 .search-icon {

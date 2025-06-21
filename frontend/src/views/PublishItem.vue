@@ -196,7 +196,9 @@ const formData = reactive({
   contactType: 'phone',
   contactValue: '',
   hideContact: false,
-  images: []
+  images: [],
+  lng: '',
+  lat: ''
 });
 
 // 处理表单提交
@@ -242,7 +244,9 @@ const submitForm = async () => {
     time: formData.time,
     contact_type: formData.contactType,
     contact_value: formData.contactValue,
-    hide_contact: formData.hideContact
+    hide_contact: formData.hideContact,
+    lat:lat.value,
+    lng:lng.value
   };
   
   // 准备图片文件

@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Query
-from sqlmodel import func, select, Session
+from sqlmodel import func, select, Session, delete
 from pydantic import parse_obj_as
 
 from app.api.deps import CurrentUser, SessionDep
@@ -214,12 +214,14 @@ def read_blog_post(
             (PostLike.user_id == current_user.id)
         )
         liked = session.exec(like_query).first() is not None
-
+    images_query = select(BlogImage.image_url).where(BlogImage.blog_id == post.id)
+    image_urls = session.exec(images_query).all()
     # 转换为公开模型
     post_dict = post.model_dump()
     post_dict["author_name"] = author.username if author else "Unknown"
     post_dict["author_avatar"] = author.avatar if author else None
     post_dict["liked"] = liked
+    post_dict["images"] = image_urls
 
     return parse_obj_as(BlogPostPublic, post_dict)
 
@@ -293,7 +295,7 @@ async def create_blog_post(
     return post  # 返回修改后的对象
 
 
-@router.put("/{id}", response_model=BlogPostPublic)
+@router.put("/{id}", response_model=Message)
 async def update_blog_post(
         session: SessionDep,
         current_user: CurrentUser,
@@ -306,7 +308,7 @@ async def update_blog_post(
         allow_comments: bool = Form(True),
         featured: bool = Form(False),
         status: BlogStatus = Form(...),
-        images: Optional[UploadFile] = File(None),
+        images: List[UploadFile] = File(None),
         remove_cover: bool = Form(False),
 ) -> Any:
     """
@@ -321,20 +323,6 @@ async def update_blog_post(
     # 检查权限
     if not current_user.is_superuser and post.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权修改此文章")
-
-    # 处理封面图片
-    images_url = post.images
-    if remove_cover:
-        images_url = None
-    elif images and images.content_type.startswith('image/'):
-        contents = await images.read()
-        if len(contents) <= 2 * 1024 * 1024:  # 限制为2MB
-            await images.seek(0)
-            images_url = await upload_file_to_storage(
-                file=images,
-                folder=f"blog-covers/{id}",
-                filename=f"{uuid.uuid4()}.{images.filename.split('.')[-1]}"
-            )
 
     # 检查发布状态变化
     was_draft = post.status == BlogStatus.DRAFT
@@ -353,33 +341,49 @@ async def update_blog_post(
     post.allow_comments = allow_comments
     post.featured = featured
     post.status = status
-    post.images = images_url
     post.updated_at = datetime.now()
 
     session.add(post)
     session.commit()
     session.refresh(post)
 
-    # 获取作者信息
-    author_query = select(User).where(User.id == post.author_id)
-    author = session.exec(author_query).first()
+    # 图片处理逻辑
+    image_urls = []
 
-    # 检查当前用户是否点赞
-    liked = False
-    if current_user:
-        like_query = select(PostLike).where(
-            (PostLike.post_id == post.id) &
-            (PostLike.user_id == current_user.id)
-        )
-        liked = session.exec(like_query).first() is not None
+    if remove_cover:
+        # 删除旧图片记录（可自行优化是否删除存储中的文件）
+        session.exec(select(BlogImage).where(BlogImage.blog_id == post.id)).delete()
+        session.commit()
 
-    # 构造响应数据
-    response_data = post.model_dump()
-    response_data["author_name"] = author.username if author else "Unknown"
-    response_data["author_avatar"] = author.avatar if author else None
-    response_data["liked"] = liked
+    if images:
+        for image in images:
+            if image.content_type.startswith('image/'):
+                contents = await image.read()
+                if len(contents) > 3 * 1024 * 1024:
+                    continue
+                await image.seek(0)
+                image_url = await upload_file_to_storage(
+                    file=image,
+                    folder=f"blog/{post.id}",
+                    filename=f"{uuid.uuid4()}.{image.filename.split('.')[-1]}"
+                )
+                blog_image = BlogImage(blog_id=post.id, image_url=image_url, created_at=datetime.now())
+                session.add(blog_image)
+                image_urls.append(image_url)
 
-    return parse_obj_as(BlogPostPublic, response_data)
+    session.commit()
+
+    # 获取图片列表
+    image_query = select(BlogImage.image_url).where(BlogImage.blog_id == post.id)
+    image_urls = session.exec(image_query).all()
+
+    # 构造响应
+    post.__dict__["images"] = image_urls
+    post.__dict__["author_name"] = current_user.username
+    post.__dict__["author_avatar"] = current_user.avatar
+
+    return Message(message="博客文章修改成功！")
+
 
 
 @router.delete("/{id}")
@@ -399,12 +403,12 @@ def delete_blog_post(
     if not current_user.is_superuser and post.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权删除此文章")
 
-    # 删除相关评论和点赞
-    session.exec(select(Comment).where(Comment.post_id == id)).delete()
-    session.exec(select(PostLike).where(PostLike.post_id == id)).delete()
-
+    # 删除相关评论和点赞：用 delete 语句构造
+    session.exec(delete(Comment).where(Comment.post_id == id))
+    session.exec(delete(PostLike).where(PostLike.post_id == id))
+    session.exec(delete(BlogImage).where(BlogImage.blog_id == id))
     # 删除文章记录
-    session.delete(post)
+    session.exec(delete(BlogPost).where(BlogPost.id == id))
     session.commit()
 
     return Message(message="博客文章已成功删除")

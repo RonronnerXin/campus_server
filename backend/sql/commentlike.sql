@@ -1,0 +1,2 @@
+INSERT INTO lab.commentlike (id, comment_id, user_id, created_at) VALUES ('27517da6870c4372888a5e61a05c96e7', '2902b5aefa084921a91256582cc47ff5', '384e528de85343119840824ac4fa06b2', '2025-06-04 08:28:11');
+INSERT INTO lab.commentlike (id, comment_id, user_id, created_at) VALUES ('2f084be2e90e4f6f9f48877952dd6d51', 'f84bb42cdb4b4193af4a5fe51b66d466', '384e528de85343119840824ac4fa06b2', '2025-06-04 08:28:40');

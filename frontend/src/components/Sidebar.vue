@@ -32,15 +32,6 @@
         发布博客
       </button>
     </div>
-      <div class="nav-section">
-        <h3 class="section-title">热门话题</h3>
-        <div class="topic-list">
-          <div class="topic-item" v-for="topic in topics" :key="topic.id">
-            <span class="topic-name"># {{ topic.name }}</span>
-            <span class="topic-count">{{ topic.count }}</span>
-          </div>
-        </div>
-      </div>
     </nav>
     
 
@@ -60,13 +51,6 @@ const navigateTo = (path) => {
   router.push(path)
 }
 
-const topics = ref([
-  { id: 1, name: '校园卡丢失', count: '56' },
-  { id: 2, name: '考研资料', count: '42' },
-  { id: 3, name: '宿舍生活', count: '38' },
-  { id: 4, name: '校园美食', count: '31' },
-  { id: 5, name: '实习信息', count: '28' }
-])
 </script>
 
 <style scoped>
